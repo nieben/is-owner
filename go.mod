@@ -1,4 +1,4 @@
-module is-onwer
+module github.com/nieben/is-owner
 
 go 1.18
 
