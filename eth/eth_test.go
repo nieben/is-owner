@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"testing"
 )
@@ -52,17 +53,23 @@ func TestVerify(t *testing.T) {
 		t.Errorf("sig recid mismatch: want: within 0 to 4 have: %d", int(sig[64]))
 	}
 
-	rt, err := Verify(msg, sig)
+	pk, err := crypto.UnmarshalPubkey(pubkey)
 	if err != nil {
-		t.Errorf("signature verify err: %s, msg: %v, sig: %v",
-			err.Error(), msg, sig)
+		t.Errorf("unmarshalPubkey err: %s", err.Error())
+		return
+	}
+	address := crypto.PubkeyToAddress(*pk).Hex()
+	rt, err := Verify(address, msg, sig)
+	if err != nil {
+		t.Errorf("signature verify err: %s, address: %s, msg: %v, sig: %v",
+			err.Error(), address, msg, sig)
 		return
 	}
 	if !rt {
-		t.Errorf("signature verify failed, msg: %v, sig: %v",
-			msg, sig)
+		t.Errorf("signature verify failed, address: %s, msg: %v, sig: %v",
+			address, msg, sig)
 	} else {
-		t.Logf("TestVerify success with pubkey: %v", pubkey)
+		t.Logf("TestVerify success with address: %v", address)
 	}
 }
 
