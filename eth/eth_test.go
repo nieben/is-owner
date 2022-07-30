@@ -1,17 +1,10 @@
 package eth
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"testing"
 )
-
-func init() {
-
-}
 
 func TestMessage(t *testing.T) {
 	msg, err := Message()
@@ -28,37 +21,21 @@ func TestMessage(t *testing.T) {
 }
 
 func TestVerify(t *testing.T) {
-	pubkey, seckey := generateKeyPair()
 	msg, err := Message()
 	if err != nil {
 		t.Errorf("gen message error: %s", err)
 	}
-	sig, err := secp256k1.Sign(msg, seckey)
+
+	seckey, _ := crypto.LoadECDSA("samplePrvKey")
+
+	sig, err := secp256k1.Sign(msg, crypto.FromECDSA(seckey))
 	if err != nil {
 		t.Errorf("signature error: %s", err)
-	}
-
-	compactSigCheck(t, sig)
-	if len(pubkey) != 65 {
-		t.Errorf("pubkey length mismatch: want: 65 have: %d", len(pubkey))
-	}
-	if len(seckey) != 32 {
-		t.Errorf("seckey length mismatch: want: 32 have: %d", len(seckey))
-	}
-	if len(sig) != 65 {
-		t.Errorf("sig length mismatch: want: 65 have: %d", len(sig))
-	}
-	recid := int(sig[64])
-	if recid > 4 || recid < 0 {
-		t.Errorf("sig recid mismatch: want: within 0 to 4 have: %d", int(sig[64]))
-	}
-
-	pk, err := crypto.UnmarshalPubkey(pubkey)
-	if err != nil {
-		t.Errorf("unmarshalPubkey err: %s", err.Error())
 		return
 	}
-	address := crypto.PubkeyToAddress(*pk).Hex()
+
+	address := crypto.PubkeyToAddress(seckey.PublicKey).Hex()
+
 	rt, err := Verify(address, msg, sig)
 	if err != nil {
 		t.Errorf("signature verify err: %s, address: %s, msg: %v, sig: %v",
@@ -66,42 +43,108 @@ func TestVerify(t *testing.T) {
 		return
 	}
 	if !rt {
-		t.Errorf("signature verify failed, address: %s, msg: %v, sig: %v",
-			address, msg, sig)
+		t.Errorf("TestVerify failed, address: %s, msg: %v, sig: %v", address, msg, sig)
 	} else {
 		t.Logf("TestVerify success with address: %v", address)
 	}
 }
 
-func generateKeyPair() (pubkey, privkey []byte) {
-	key, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
-
+func TestVerifyInvalidAddress(t *testing.T) {
+	msg, err := Message()
 	if err != nil {
-		panic(err)
+		t.Errorf("gen message error: %s", err)
+		return
 	}
 
-	//address := crypto2.PubkeyToAddress(key.PublicKey).String()
-	//fmt.Println(address)
-	pubkey = elliptic.Marshal(secp256k1.S256(), key.X, key.Y)
+	seckey, _ := crypto.LoadECDSA("samplePrvKey")
 
-	privkey = make([]byte, 32)
-	blob := key.D.Bytes()
-	copy(privkey[32-len(blob):], blob)
+	sig, err := secp256k1.Sign(msg, crypto.FromECDSA(seckey))
+	if err != nil {
+		t.Errorf("signature error: %s", err)
+		return
+	}
 
-	return pubkey, privkey
+	invalidAddress := "0x0000000000000000000000000000000000000000"
+
+	rt, err := Verify(invalidAddress, msg, sig)
+	if err != nil {
+		t.Errorf("signature verify err: %s, address: %s, msg: %v, sig: %v",
+			err.Error(), invalidAddress, msg, sig)
+		return
+	}
+	if !rt {
+		t.Logf("TestVerifyInvalidAddress success with expceted result false: %v, address: %s", rt, invalidAddress)
+	} else {
+		t.Errorf("signature verify failed, address: %s, msg: %v, sig: %v",
+			invalidAddress, msg, sig)
+	}
 }
 
-// tests for malleability
-// highest bit of signature ECDSA s value must be 0, in the 33th byte
-func compactSigCheck(t *testing.T, sig []byte) {
-	var b = int(sig[32])
-	if b < 0 {
-		t.Errorf("highest bit is negative: %d", b)
+func TestVerifyInvalidSign(t *testing.T) {
+	msg, err := Message()
+	if err != nil {
+		t.Errorf("gen message error: %s", err)
+		return
 	}
-	if ((b >> 7) == 1) != ((b & 0x80) == 0x80) {
-		t.Errorf("highest bit: %d bit >> 7: %d", b, b>>7)
+
+	seckey, _ := crypto.LoadECDSA("samplePrvKey")
+
+	badSig, err := secp256k1.Sign(msg, crypto.FromECDSA(seckey))
+	if err != nil {
+		t.Errorf("signature error: %s", err)
+		return
 	}
-	if (b & 0x80) == 0x80 {
-		t.Errorf("highest bit: %d bit & 0x80: %d", b, b&0x80)
+	badSig[0] = 9 // change sig to invalid
+
+	address := crypto.PubkeyToAddress(seckey.PublicKey).Hex()
+
+	rt, err := Verify(address, msg, badSig)
+	if err != nil {
+		t.Errorf("signature verify err: %s, address: %s, msg: %v, sig: %v",
+			err.Error(), address, msg, badSig)
+		return
+	}
+	if !rt {
+		t.Logf("TestVerifyInvalidSign success with expceted result false: %v, address: %s, randomSig: %v",
+			rt, address, badSig)
+	} else {
+		t.Errorf("TestVerifyInvalidSign failed, address: %s, msg: %v, sig: %v",
+			address, msg, badSig)
+	}
+}
+
+func TestVerifyWithRandomPrvKey(t *testing.T) {
+	msg, err := Message()
+	if err != nil {
+		t.Errorf("gen message error: %s", err)
+		return
+	}
+
+	// random generated private key
+	seckey, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("GenerateKey error: %s", err)
+		return
+	}
+
+	sig, err := secp256k1.Sign(msg, crypto.FromECDSA(seckey))
+	if err != nil {
+		t.Errorf("signature error: %s", err)
+		return
+	}
+
+	address := crypto.PubkeyToAddress(seckey.PublicKey).Hex()
+
+	rt, err := Verify(address, msg, sig)
+	if err != nil {
+		t.Errorf("signature verify err: %s, address: %s, msg: %v, sig: %v",
+			err.Error(), address, msg, sig)
+		return
+	}
+	if !rt {
+		t.Errorf("TestVerifyWithRandomPrvKey failed, address: %s, msg: %v, sig: %v",
+			address, msg, sig)
+	} else {
+		t.Logf("TestVerifyWithRandomPrvKey success with random address: %v", address)
 	}
 }
