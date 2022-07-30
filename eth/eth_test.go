@@ -24,6 +24,7 @@ func TestVerify(t *testing.T) {
 	msg, err := Message()
 	if err != nil {
 		t.Errorf("gen message error: %s", err)
+		return
 	}
 
 	seckey, _ := crypto.LoadECDSA("samplePrvKey")
@@ -38,7 +39,7 @@ func TestVerify(t *testing.T) {
 
 	rt, err := Verify(address, msg, sig)
 	if err != nil {
-		t.Errorf("signature verify err: %s, address: %s, msg: %v, sig: %v",
+		t.Errorf("verify err: %s, address: %s, msg: %v, sig: %v",
 			err.Error(), address, msg, sig)
 		return
 	}
@@ -68,14 +69,14 @@ func TestVerifyInvalidAddress(t *testing.T) {
 
 	rt, err := Verify(invalidAddress, msg, sig)
 	if err != nil {
-		t.Errorf("signature verify err: %s, address: %s, msg: %v, sig: %v",
+		t.Errorf("verify err: %s, address: %s, msg: %v, sig: %v",
 			err.Error(), invalidAddress, msg, sig)
 		return
 	}
 	if !rt {
 		t.Logf("TestVerifyInvalidAddress success with expceted result false: %v, address: %s", rt, invalidAddress)
 	} else {
-		t.Errorf("signature verify failed, address: %s, msg: %v, sig: %v",
+		t.Errorf("TestVerifyInvalidAddress failed, address: %s, msg: %v, sig: %v",
 			invalidAddress, msg, sig)
 	}
 }
@@ -100,7 +101,7 @@ func TestVerifyInvalidSign(t *testing.T) {
 
 	rt, err := Verify(address, msg, badSig)
 	if err != nil {
-		t.Errorf("signature verify err: %s, address: %s, msg: %v, sig: %v",
+		t.Errorf("verify err: %s, address: %s, msg: %v, sig: %v",
 			err.Error(), address, msg, badSig)
 		return
 	}
@@ -137,7 +138,7 @@ func TestVerifyWithRandomPrvKey(t *testing.T) {
 
 	rt, err := Verify(address, msg, sig)
 	if err != nil {
-		t.Errorf("signature verify err: %s, address: %s, msg: %v, sig: %v",
+		t.Errorf("verify err: %s, address: %s, msg: %v, sig: %v",
 			err.Error(), address, msg, sig)
 		return
 	}
