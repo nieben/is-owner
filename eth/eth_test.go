@@ -95,7 +95,7 @@ func TestVerifyInvalidSign(t *testing.T) {
 		t.Errorf("signature error: %s", err)
 		return
 	}
-	badSig[0] = 9 // change sig to invalid
+	badSig[1] -= 1 // change sig to invalid
 
 	address := crypto.PubkeyToAddress(seckey.PublicKey).Hex()
 
