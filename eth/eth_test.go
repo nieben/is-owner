@@ -114,6 +114,40 @@ func TestVerifyInvalidSign(t *testing.T) {
 	}
 }
 
+func TestVerifyInvalidMsg(t *testing.T) {
+	msg, err := Message()
+	if err != nil {
+		t.Errorf("gen message error: %s", err)
+		return
+	}
+
+	seckey, _ := crypto.LoadECDSA("samplePrvKey")
+
+	sig, err := secp256k1.Sign(msg, crypto.FromECDSA(seckey))
+	if err != nil {
+		t.Errorf("signature error: %s", err)
+		return
+	}
+
+	address := crypto.PubkeyToAddress(seckey.PublicKey).Hex()
+
+	randomMsg, _ := Message() // use another random msg
+
+	rt, err := Verify(address, randomMsg, sig)
+	if err != nil {
+		t.Errorf("verify err: %s, address: %s, msg: %v, sig: %v",
+			err.Error(), address, msg, sig)
+		return
+	}
+	if !rt {
+		t.Logf("TestVerifyInvalidMsg success with expceted result false: %v, address: %s, sig: %v",
+			rt, address, sig)
+	} else {
+		t.Errorf("TestVerifyInvalidMsg failed, address: %s, msg: %v, sig: %v",
+			address, randomMsg, sig)
+	}
+}
+
 func TestVerifyWithRandomPrvKey(t *testing.T) {
 	msg, err := Message()
 	if err != nil {
